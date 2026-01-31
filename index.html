@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Velosify</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    
+    <script src="https://unpkg.com/lucide@0.263.1/dist/umd/lucide.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+        
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background-color: #05050a; 
+            color: #e2e8f0; 
+            overflow-x: hidden; 
+        }
+
+        /* --- 3D BACKGROUND --- */
+        .scifi-grid {
+            position: fixed; width: 200%; height: 200%; bottom: -50%; left: -50%;
+            background-image: linear-gradient(rgba(99, 102, 241, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(99, 102, 241, 0.3) 1px, transparent 1px);
+            background-size: 60px 60px;
+            transform: perspective(500px) rotateX(60deg);
+            animation: grid-move 20s linear infinite;
+            z-index: -2; opacity: 0.4;
+            mask-image: linear-gradient(to top, rgba(0,0,0,1), rgba(0,0,0,0));
+        }
+        .stars {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(white 1px, transparent 1px);
+            background-size: 50px 50px; opacity: 0.1; z-index: -3;
+        }
+        @keyframes grid-move { 0% { transform: perspective(500px) rotateX(60deg) translateY(0); } 100% { transform: perspective(500px) rotateX(60deg) translateY(60px); } }
+
+        /* --- GLASS UI --- */
+        .holo-card {
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
+            transition: all 0.3s ease;
+        }
+        .holo-card:hover { border-color: rgba(99, 102, 241, 0.6); transform: translateY(-2px); }
+
+        /* --- ANIMATIONS --- */
+        .animate-fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .loader { width: 48px; height: 48px; border: 5px solid #FFF; border-bottom-color: #6366f1; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* 3D Flip */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+    </style>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: { colors: { brand: { 500: '#6366f1', 600: '#4f46e5', 400: '#818cf8' }, surface: { 800: '#1e293b', 900: '#0f172a' } } }
+            }
+        }
+    </script>
+</head>
+<body>
+    
+    <div id="loading-screen" class="fixed inset-0 z-50 bg-[#05050a] flex flex-col items-center justify-center text-white">
+        <span class="loader"></span>
+        <h2 class="text-2xl font-bold tracking-widest mt-6">PREP_OS v19</h2>
+        <p class="text-xs text-brand-400 mt-2 font-mono tracking-widest opacity-70">INITIALIZING CORE...</p>
+        <div id="error-msg" class="hidden mt-8 text-red-400 text-center max-w-md p-4 border border-red-500/50 rounded bg-red-900/20">
+            <p class="font-bold">SYSTEM FAILURE DETECTED</p>
+            <p class="text-xs mt-2">If this persists, click Reset below.</p>
+            <button onclick="localStorage.clear(); window.location.reload();" class="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded font-bold">FACTORY RESET</button>
+        </div>
+    </div>
+
+    <div class="stars"></div>
+    <div class="scifi-grid"></div>
+    <div class="fixed top-0 left-0 w-full h-full bg-gradient-to-b from-black/10 via-transparent to-black pointer-events-none z-[-1]"></div>
+
+    <div id="root"></div>
+
+    <script>
+        // Error Handling
+        window.onerror = function() { document.getElementById('loading-screen').style.display = 'flex'; document.getElementById('error-msg').classList.remove('hidden'); document.querySelector('.loader').style.display='none'; };
+        setTimeout(() => { if(!document.getElementById('root').innerHTML) document.getElementById('error-msg').classList.remove('hidden'); }, 6000);
+    </script>
+
+    <script type="text/babel">
+        // --- SAFEGUARD ---
+        if (!window.React || !window.ReactDOM) throw new Error("React failed to load");
+        setTimeout(() => { const l = document.getElementById('loading-screen'); if(l) { l.style.opacity = '0'; setTimeout(()=>l.remove(), 500); } }, 800);
+
+        const { useState, useEffect, useMemo } = React;
+
+        // --- ICONS ---
+        const Icon = ({ name, size = 20, className = "" }) => {
+            useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} width={size} height={size} className={className}></i>;
+        };
+
+        const cn = (...classes) => classes.filter(Boolean).join(" ");
+
+        // --- DEFAULT DATA ---
+        const GATE_CS_FULL = [
+            { id: 'ga', name: "General Aptitude", expanded: true, topics: [{ id: 'ga-1', name: "Verbal Ability", status: "not-started", weight: 0 }, { id: 'ga-2', name: "Quantitative Aptitude", status: "not-started", weight: 0 }] },
+            { id: 'em', name: "Engineering Math", expanded: false, topics: [{ id: 'em-1', name: "Discrete Math", status: "not-started", weight: 0 }, { id: 'em-2', name: "Linear Algebra", status: "not-started", weight: 0 }, { id: 'em-3', name: "Calculus", status: "not-started", weight: 0 }] },
+            { id: 'ds', name: "Data Structures", expanded: false, topics: [{ id: 'ds-1', name: "Arrays & Stacks", status: "not-started", weight: 0 }, { id: 'ds-2', name: "Trees & Graphs", status: "not-started", weight: 0 }] },
+            { id: 'algo', name: "Algorithms", expanded: false, topics: [{ id: 'al-1', name: "Sorting", status: "not-started", weight: 0 }, { id: 'al-2', name: "Dynamic Prog", status: "not-started", weight: 0 }] },
+            { id: 'os', name: "Operating System", expanded: false, topics: [{ id: 'os-1', name: "Processes", status: "not-started", weight: 0 }, { id: 'os-2', name: "Deadlock", status: "not-started", weight: 0 }] },
+            { id: 'db', name: "Databases", expanded: false, topics: [{ id: 'db-1', name: "SQL", status: "not-started", weight: 0 }] },
+            { id: 'cn', name: "Computer Networks", expanded: false, topics: [{ id: 'cn-1', name: "IP Addressing", status: "not-started", weight: 0 }] }
+        ];
+
+        // --- COMPONENTS ---
+        const Card = ({ children, className = "", onClick }) => <div onClick={onClick} className={cn("holo-card rounded-xl p-6 relative overflow-hidden", className)}>{children}</div>;
+        
+        const ProgressBar = ({ value, max, color = "bg-brand-500" }) => { 
+            const p = Math.min(100, Math.max(0, (value/max)*100)); 
+            return (
+                <div className="w-full bg-black/40 rounded-full h-1.5 overflow-hidden shadow-inner border border-white/5">
+                    <div className={cn("h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(99,102,241,0.5)]", color)} style={{width: `${p}%`}}></div>
+                </div>
+            ); 
+        };
+        
+        const Button = ({ children, onClick, variant='primary', className="", icon=null }) => {
+            const v = { 
+                primary: "bg-brand-600 text-white hover:bg-brand-500 shadow-lg shadow-brand-500/20", 
+                secondary: "bg-surface-800 border border-white/10 hover:bg-surface-800/80 hover:border-white/20 text-slate-200", 
+                danger: "bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20" 
+            };
+            return <button onClick={onClick} className={cn("flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95", v[variant], className)}>{icon && <Icon name={icon} size={18}/>}{children}</button>;
+        };
+
+        // --- CSS CHART (Crash Proof) ---
+        const SciFiChart = ({ data }) => (
+            <div className="w-full h-64 flex items-end justify-between gap-3 pt-6 px-2 border-b border-white/5">
+                {data.map((d, i) => (
+                    <div key={i} className="flex-1 flex flex-col items-center group h-full justify-end relative">
+                        <div className="w-full bg-surface-800/40 rounded-t-sm relative h-full flex flex-col justify-end overflow-hidden hover:bg-white/5 transition-colors">
+                            <div className="w-full bg-gradient-to-t from-brand-600 to-brand-400 opacity-80 transition-all duration-1000 ease-out relative group-hover:opacity-100 group-hover:shadow-[0_0_20px_rgba(99,102,241,0.4)]" style={{ height: `${Math.max(2, d.percent)}%` }}></div>
+                        </div>
+                        <div className="absolute -top-8 bg-black text-brand-400 text-[10px] px-2 py-1 rounded border border-brand-500/30 opacity-0 group-hover:opacity-100 transition-opacity font-mono font-bold">{d.percent}%</div>
+                        <span className="text-[10px] uppercase text-slate-500 mt-3 font-bold tracking-widest truncate w-full text-center rotate-45 origin-left translate-y-2">{d.name}</span>
+                    </div>
+                ))}
+            </div>
+        );
+
+        // --- COUNTDOWN ---
+        const CountdownTimer = ({ targetDate }) => {
+            const [timeLeft, setTimeLeft] = useState({});
+            useEffect(() => { const timer = setInterval(() => { const diff = new Date(targetDate) - new Date(); if (diff > 0) { setTimeLeft({ d: Math.floor(diff / (1000 * 60 * 60 * 24)), h: Math.floor((diff / (1000 * 60 * 60)) % 24), m: Math.floor((diff / 1000 / 60) % 60), s: Math.floor((diff / 1000) % 60) }); } }, 1000); return () => clearInterval(timer); }, [targetDate]);
+            return (
+                <div className="flex gap-2">
+                    {['d','h','m','s'].map(unit => (
+                        <div key={unit} className="flex flex-col items-center">
+                            <div className="w-10 h-10 bg-black/40 border border-brand-500/30 rounded flex items-center justify-center text-lg font-bold font-mono text-white shadow-[0_0_10px_rgba(99,102,241,0.1)]">
+                                {timeLeft[unit] !== undefined ? String(timeLeft[unit]).padStart(2,'0') : '00'}
+                            </div>
+                            <span className="text-[9px] uppercase text-brand-400 mt-1 font-bold tracking-widest opacity-70">{unit}</span>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- DASHBOARD ---
+        const Dashboard = ({ user, setTab }) => {
+            const stats = useMemo(() => { let comp=0, tot=0; user.syllabus.forEach(s=>s.topics.forEach(t=>{tot++; if(t.status==='completed')comp++})); return { comp, tot, doing: user.kanban.doing.length }; }, [user]);
+            const totalHours = Math.floor((user.totalTime || 0) / 60);
+            const totalMins = Math.floor((user.totalTime || 0) % 60);
+            const dueCardsCount = (user.flashcards || []).filter(c => !c.nextReview || c.nextReview <= new Date().toISOString().split('T')[0]).length;
+            const graphData = useMemo(() => user.syllabus.map(sub => { const completed = sub.topics.filter(t => t.status === 'completed').length; const total = sub.topics.length; let shortName = sub.name.replace(/Section \d+: /, '').replace(/Sec \d+: /, ''); if(shortName.length > 6) shortName = shortName.substring(0, 6); return { name: shortName, percent: total === 0 ? 0 : Math.round((completed/total)*100) }; }), [user.syllabus]);
+
+            return (
+                <div className="space-y-8 animate-fade-in pb-10">
+                    <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                        <div>
+                            <div className="flex items-center gap-2 mb-2"><span className="bg-brand-500/10 text-brand-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] border border-brand-500/20">{user.goalName || "GATE CS"}</span></div>
+                            <h2 className="text-5xl font-bold text-white tracking-tight drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">Dashboard</h2>
+                        </div>
+                        <div className="holo-card p-4 flex flex-col items-end gap-2 !bg-black/40">
+                            <div className="text-[10px] text-brand-400 uppercase font-bold tracking-widest text-right">Mission Countdown</div>
+                            <CountdownTimer targetDate={user.examDate || '2026-02-01'} />
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <Card className="border-l-4 border-l-emerald-500 hover:border-emerald-400">
+                            <div className="text-xs text-slate-400 mb-1 uppercase tracking-widest">Syllabus</div>
+                            <div className="text-4xl font-bold text-white mb-2">{Math.round((stats.comp/stats.tot)*100)||0}%</div>
+                            <ProgressBar value={stats.comp} max={stats.tot} color="bg-emerald-500"/>
+                        </Card>
+                        <Card className="border-l-4 border-l-brand-500 hover:border-brand-400">
+                            <div className="text-xs text-slate-400 mb-1 uppercase tracking-widest">Focus Time</div>
+                            <div className="text-4xl font-bold text-white">{totalHours}<span className="text-lg text-slate-500">h</span> {totalMins}<span className="text-lg text-slate-500">m</span></div>
+                        </Card>
+                        <Card className="border-l-4 border-l-purple-500 hover:border-purple-400" onClick={() => setTab('projects')} className="cursor-pointer">
+                            <div className="text-xs text-slate-400 mb-1 uppercase tracking-widest">Tasks</div>
+                            <div className="text-4xl font-bold text-white">{stats.doing}</div>
+                        </Card>
+                        <Card className="border-l-4 border-l-pink-500 hover:border-pink-400" onClick={() => setTab('flashcards')} className="cursor-pointer">
+                            <div className="text-xs text-slate-400 mb-1 uppercase tracking-widest">Review</div>
+                            <div className="text-4xl font-bold text-white">{dueCardsCount}</div>
+                        </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <Card className="lg:col-span-2 min-h-[350px] flex flex-col">
+                            <h3 className="font-bold mb-4 text-white flex items-center gap-2 tracking-wide"><Icon name="bar-chart-2" size={18} className="text-brand-400"/> SYLLABUS MASTERY</h3>
+                            <div className="flex-1 flex items-end"><SciFiChart data={graphData} /></div>
+                        </Card>
+                        <Card className="flex flex-col justify-center items-center text-center relative overflow-hidden group !bg-black/40 border-brand-500/20">
+                            <div className="w-20 h-20 rounded-full bg-brand-500/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(99,102,241,0.2)] group-hover:scale-110 transition-transform duration-500"><Icon name="zap" size={40} className="text-brand-400" /></div>
+                            <p className="text-2xl font-bold mb-2 text-white">Deep Focus</p>
+                            <Button onClick={() => setTab('focus')} className="w-full mt-6">Initialize Session</Button>
+                        </Card>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- FLASHCARDS ---
+        const SmartFlashcards = ({ user, updateUser }) => {
+            const [isFlipped, setIsFlipped] = useState(false); const [showAdd, setShowAdd] = useState(false); const [newCard, setNewCard] = useState({ front: "", back: "" });
+            const today = new Date().toISOString().split('T')[0];
+            const dueCards = (user.flashcards || []).filter(c => !c.nextReview || c.nextReview <= today);
+            
+            const handleRate = (rating) => {
+                const card = dueCards[0]; let nextDate = new Date();
+                if (rating === 'hard') nextDate.setDate(nextDate.getDate() + 1); else if (rating === 'medium') nextDate.setDate(nextDate.getDate() + 2); else nextDate.setDate(nextDate.getDate() + 3);
+                const updatedCard = { ...card, nextReview: nextDate.toISOString().split('T')[0] };
+                updateUser({ ...user, flashcards: [...user.flashcards.filter(c => c.id !== card.id), updatedCard] }); setIsFlipped(false);
+            };
+            const addCard = (e) => { e.preventDefault(); if (!newCard.front || !newCard.back) return; updateUser({ ...user, flashcards: [...(user.flashcards || []), { id: Date.now(), front: newCard.front, back: newCard.back, nextReview: today }] }); setNewCard({ front: "", back: "" }); setShowAdd(false); };
+            const deleteCard = (id) => { updateUser({ ...user, flashcards: user.flashcards.filter(c => c.id !== id) }); }
+
+            return (
+                <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">
+                    <header className="flex justify-between items-center"><div><h2 className="text-3xl font-bold text-white">Flashcards</h2><p className="text-slate-400 text-sm mt-1">Neural Retention Protocol</p></div><Button variant="secondary" onClick={() => setShowAdd(!showAdd)} icon="plus">Create</Button></header>
+                    {showAdd && (<Card className="mb-8 border-brand-500/30"><form onSubmit={addCard} className="space-y-4"><div><label className="text-xs text-brand-400 uppercase font-bold tracking-widest">Question</label><input value={newCard.front} onChange={e=>setNewCard({...newCard, front: e.target.value})} className="w-full bg-black/50 border border-slate-700 rounded-xl p-4 text-white mt-2 outline-none focus:border-brand-500" /></div><div><label className="text-xs text-brand-400 uppercase font-bold tracking-widest">Answer</label><input value={newCard.back} onChange={e=>setNewCard({...newCard, back: e.target.value})} className="w-full bg-black/50 border border-slate-700 rounded-xl p-4 text-white mt-2 outline-none focus:border-brand-500" /></div><Button type="submit" className="w-full">Upload</Button></form></Card>)}
+                    {dueCards.length > 0 ? (
+                        <div className="flex flex-col items-center">
+                            <div className="perspective-1000 w-full max-w-lg h-80 cursor-pointer group" onClick={() => setIsFlipped(!isFlipped)}>
+                                <div className={`relative w-full h-full text-center transition-transform duration-700 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                                    <div className="absolute w-full h-full backface-hidden holo-card rounded-2xl flex flex-col items-center justify-center p-10 border border-white/10 shadow-2xl"><div className="absolute top-4 left-4 text-xs font-mono text-slate-500">FRONT</div><p className="text-2xl font-bold text-white">{dueCards[0].front}</p><div className="absolute bottom-6 flex flex-col items-center gap-1 opacity-50"><Icon name="refresh-cw" size={16} /><span className="text-[10px] uppercase tracking-widest">Flip Card</span></div></div>
+                                    <div className="absolute w-full h-full backface-hidden holo-card rounded-2xl flex flex-col items-center justify-center p-10 border border-brand-500/30 rotate-y-180 bg-brand-900/10"><div className="absolute top-4 left-4 text-xs font-mono text-brand-400">BACK</div><p className="text-2xl font-bold text-white">{dueCards[0].back}</p></div>
+                                </div>
+                            </div>
+                            {isFlipped && (<div className="flex gap-4 mt-10"><button onClick={() => handleRate('hard')} className="px-8 py-3 rounded-xl bg-red-500/10 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white transition-all font-bold uppercase text-xs">Hard (1d)</button><button onClick={() => handleRate('medium')} className="px-8 py-3 rounded-xl bg-amber-500/10 border border-amber-500/50 text-amber-400 hover:bg-amber-500 hover:text-white transition-all font-bold uppercase text-xs">Medium (2d)</button><button onClick={() => handleRate('easy')} className="px-8 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all font-bold uppercase text-xs">Easy (3d)</button></div>)}
+                            <div className="mt-8 text-slate-500 text-xs font-mono tracking-widest">QUEUE: {dueCards.length} CARDS</div>
+                        </div>
+                    ) : (<div className="text-center py-24 holo-card border-dashed border-slate-700/50"><div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6"><Icon name="check" size={40} className="text-emerald-500" /></div><h3 className="text-2xl font-bold text-white mb-2">Review Complete</h3><p className="text-slate-400">Neural pathways reinforced.</p><Button variant="secondary" className="mt-8" onClick={() => setShowAdd(true)}>Add New</Button></div>)}
+                    <div className="mt-16"><h3 className="text-sm font-bold text-slate-400 mb-6 uppercase tracking-widest border-b border-white/5 pb-2">Full Database</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{(user.flashcards || []).map(c => (<div key={c.id} className="bg-white/5 p-4 rounded-xl border border-white/5 flex justify-between items-center group hover:bg-white/10 transition-colors"><div><p className="font-bold text-slate-200">{c.front}</p><p className="text-xs text-slate-500 mt-1 truncate max-w-xs font-mono">{c.back}</p></div><button onClick={() => deleteCard(c.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><Icon name="trash-2" size={16} /></button></div>))}</div></div>
+                </div>
+            );
+        };
+
+        // --- SYLLABUS ---
+        const Syllabus = ({ user, updateUser, logActivity }) => {
+            const [newSub, setNewSub] = useState(""); const [showAdd, setShowAdd] = useState(false); const [sortBy, setSortBy] = useState('default');
+            const toggle = (sid) => updateUser({...user, syllabus: user.syllabus.map(s => s.id===sid ? {...s, expanded: !s.expanded} : s)});
+            const updateTopic = (sid, tid, field, val) => { if(field==='status' && val==='completed') logActivity(); updateUser({...user, syllabus: user.syllabus.map(s => s.id!==sid ? s : {...s, topics: s.topics.map(t => t.id!==tid ? t : {...t, [field]: val})})}); }
+            const addSubject = (e) => { e.preventDefault(); if(!newSub) return; updateUser({...user, syllabus: [...user.syllabus, { id: Date.now(), name: newSub, expanded: true, topics: [] }]}); setNewSub(""); setShowAdd(false); }
+            const addTopic = (sid) => { const name = prompt("Topic Name:"); if(!name) return; updateUser({...user, syllabus: user.syllabus.map(s => s.id !== sid ? s : {...s, topics: [...s.topics, {id: Date.now(), name, status: 'not-started', weight: 0}]})}); }
+            const getSortedTopics = (topics) => { if (sortBy === 'weight') return [...topics].sort((a, b) => (b.weight || 0) - (a.weight || 0)); return topics; };
+            return (
+                <div className="space-y-6">
+                    <header className="flex justify-between items-center"><div><h2 className="text-3xl font-bold text-white">Syllabus</h2><p className="text-slate-400 text-sm mt-1">Progress & Weightage</p></div><div className="flex gap-2"><Button variant="secondary" onClick={() => setSortBy(sortBy==='default'?'weight':'default')} icon="arrow-up-down">{sortBy==='default'?'Value Sort':'Default'}</Button><Button variant="primary" onClick={() => setShowAdd(!showAdd)} icon="plus">Subject</Button></div></header>
+                    {showAdd && (<Card className="mb-4 animate-fade-in"><form onSubmit={addSubject} className="flex gap-2"><input value={newSub} onChange={e=>setNewSub(e.target.value)} placeholder="Subject Name" className="flex-1 bg-black/50 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-brand-500" /><Button type="submit">Add</Button></form></Card>)}
+                    <div className="space-y-4">{user.syllabus.map(sub => (<div key={sub.id} className="holo-card rounded-xl overflow-hidden p-0"><div onClick={()=>toggle(sub.id)} className="p-5 flex justify-between items-center cursor-pointer hover:bg-white/5 transition-colors"><div className="flex items-center gap-4"><Icon name={sub.expanded?"chevron-down":"chevron-right"} size={18} className="text-brand-400"/><span className="font-bold text-lg text-white">{sub.name}</span></div><span className="text-xs font-mono text-slate-400 bg-black/30 border border-white/5 px-3 py-1 rounded-lg">{sub.topics.filter(t=>t.status==='completed').length} / {sub.topics.length}</span></div>{sub.expanded && (<div className="p-4 border-t border-white/5 bg-black/20 space-y-2">{getSortedTopics(sub.topics).map(t=>(<div key={t.id} className="flex flex-col sm:flex-row sm:items-center gap-3 bg-white/5 p-3 rounded-lg border border-white/5 hover:border-brand-500/30 transition-colors"><div className="flex-1 flex items-center gap-3"><span className="text-sm text-slate-300 font-medium">{t.name}</span>{(t.weight > 0) && <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/30 font-bold">{t.weight} PTS</span>}</div><div className="flex items-center gap-2"><input type="number" placeholder="Wgt" value={t.weight||''} onChange={e=>updateTopic(sub.id,t.id,'weight',e.target.value)} className="w-16 bg-black/50 border border-slate-700 p-1.5 rounded-lg text-xs text-white text-center outline-none focus:border-brand-500 placeholder-slate-600" title="Marks Weightage" /><select value={t.status} onChange={e=>updateTopic(sub.id,t.id,'status',e.target.value)} className={`text-xs border p-1.5 rounded-lg outline-none font-medium cursor-pointer ${t.status==='completed'?'bg-emerald-500/20 text-emerald-400 border-emerald-500/50':'bg-black/50 text-slate-300 border-slate-700'}`}><option value="not-started">Pending</option><option value="in-progress">Doing</option><option value="completed">Done</option></select></div></div>))}<button onClick={() => addTopic(sub.id)} className="w-full py-3 text-xs font-bold text-slate-500 border border-dashed border-slate-700 rounded-lg hover:bg-white/5 hover:text-brand-400 transition-colors uppercase tracking-widest mt-2">+ Add Topic</button></div>)}</div>))}</div>
+                </div>
+            );
+        };
+
+        const KanbanColumn = ({ id, title, items, next, onAdd, onMove, onDelete, text, setText }) => (
+            <div className="flex-1 min-w-[300px] holo-card p-0 overflow-hidden flex flex-col h-full">
+                <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/5"><h3 className="font-bold text-white uppercase tracking-wider text-sm">{title}</h3><span className="text-[10px] bg-black/50 px-2 py-1 rounded text-slate-400 font-mono">{items.length}</span></div>
+                <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+                    {id === 'todo' && (<form onSubmit={(e) => { e.preventDefault(); onAdd(); }} className="mb-2"><input value={text} onChange={(e) => setText(e.target.value)} placeholder="+ Add Task" className="w-full bg-black/30 border border-white/10 rounded-lg p-3 text-sm text-white outline-none focus:border-brand-500 transition-colors" /></form>)}
+                    {items.map(t => (<div key={t.id} className="bg-white/5 p-4 rounded-xl border border-white/5 hover:border-brand-500/30 transition-all group relative"><p className="text-sm font-medium text-slate-200 mb-4">{t.title}</p><div className="flex justify-between items-center">{next && <button onClick={() => onMove(t.id, id, next)} className="text-[10px] font-bold bg-brand-500/20 text-brand-400 px-3 py-1 rounded hover:bg-brand-500 hover:text-white transition-colors">NEXT &rarr;</button>}<button onClick={() => onDelete(t.id, id)} className="text-slate-600 hover:text-red-400 transition-colors"><Icon name="x" size={14}/></button></div></div>))}
+                </div>
+            </div>
+        );
+
+        const KanbanBoard = ({ user, updateUser, logActivity }) => {
+            const [text, setText] = useState("");
+            const kanban = user.kanban;
+            const addTask = () => { if(!text.trim()) return; updateUser({ ...user, kanban: { ...user.kanban, todo: [{id:Date.now(), title:text}, ...user.kanban.todo] } }); setText(""); };
+            const moveTask = (id, from, to) => { if(to === 'done') logActivity(); const task = user.kanban[from].find(t=>t.id===id); updateUser({ ...user, kanban: { ...user.kanban, [from]: user.kanban[from].filter(t=>t.id!==id), [to]: [task, ...user.kanban[to]] } }); };
+            const delTask = (id, col) => { updateUser({ ...user, kanban: { ...user.kanban, [col]: user.kanban[col].filter(t=>t.id!==id) } }); };
+            return (<div className="h-full flex flex-col"><header className="mb-6"><h2 className="text-3xl font-bold text-white">Mission Board</h2></header><div className="flex gap-6 overflow-x-auto pb-8 h-full"><KanbanColumn id="todo" title="To Do" items={user.kanban.todo} next="doing" onAdd={addTask} onMove={moveTask} onDelete={delTask} text={text} setText={setText} /><KanbanColumn id="doing" title="In Progress" items={user.kanban.doing} next="done" onMove={moveTask} onDelete={delTask} /><KanbanColumn id="done" title="Completed" items={user.kanban.done} onDelete={delTask} /></div></div>);
+        };
+
+        const ResourceVault = ({ user, updateUser }) => {
+            const [form, setForm] = useState({ title: "", link: "", type: "link" });
+            const add = (e) => { e.preventDefault(); if(!form.title) return; updateUser({...user, resources: [{...form, id:Date.now()}, ...(user.resources||[])]}); setForm({ title: "", link: "", type: "link" }); };
+            return (<div className="space-y-6"><header><h2 className="text-3xl font-bold text-white">Data Vault</h2></header><Card><form onSubmit={add} className="flex flex-col md:flex-row gap-4"><input value={form.title} onChange={e=>setForm({...form, title:e.target.value})} placeholder="Resource Title" className="flex-1 bg-black/50 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-brand-500" /><input value={form.link} onChange={e=>setForm({...form, link:e.target.value})} placeholder="URL Link" className="flex-1 bg-black/50 border border-slate-700 rounded-xl p-3 text-white outline-none focus:border-brand-500" /><Button type="submit">Encrypt & Save</Button></form></Card><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{(user.resources||[]).map(r=>(<Card key={r.id} className="flex justify-between group items-center hover:bg-white/5"><div className="truncate flex items-center gap-3"><div className="p-2 rounded-lg bg-brand-500/10 text-brand-400"><Icon name="link" size={18}/></div><div><h3 className="font-bold text-white">{r.title}</h3><a href={r.link} target="_blank" className="text-xs text-brand-400 truncate block hover:underline font-mono">{r.link}</a></div></div><button onClick={()=>updateUser({...user, resources:user.resources.filter(x=>x.id!==r.id)})} className="text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Icon name="trash-2" size={18}/></button></Card>))}</div></div>);
+        };
+
+        const FocusMode = ({ focusState, setFocusState, logTime }) => {
+            const { timeLeft, isActive, initialTime } = focusState;
+            const toggleTimer = () => setFocusState({ ...focusState, isActive: !isActive });
+            const resetTimer = () => setFocusState({ ...focusState, isActive: false, timeLeft: initialTime });
+            const setPreset = (mins) => setFocusState({ timeLeft: mins * 60, initialTime: mins * 60, isActive: true });
+            const fmt = (s) => `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+            return (
+                <div className="max-w-md mx-auto text-center space-y-8 py-20">
+                    <h2 className="text-4xl font-bold text-white tracking-tight">Focus Protocol</h2>
+                    <div className="relative"><div className="absolute inset-0 bg-brand-500/20 blur-3xl rounded-full opacity-20 animate-pulse"></div><Card className="py-16 relative overflow-hidden border-brand-500/30"><div className="text-9xl font-black text-white mb-10 font-mono relative z-10 tracking-tighter drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">{fmt(timeLeft)}</div><div className="flex justify-center gap-6 relative z-10 mb-10"><button onClick={toggleTimer} className={`px-10 py-4 rounded-xl flex items-center gap-3 text-white font-bold shadow-2xl transition-all hover:scale-105 ${isActive ? 'bg-amber-500' : 'bg-brand-600'}`}><Icon name={isActive ? "pause" : "play"} size={24} fill="currentColor"/>{isActive ? "PAUSE" : "ENGAGE"}</button><button onClick={resetTimer} className="px-6 py-4 rounded-xl flex items-center gap-2 bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white transition-all font-bold"><Icon name="rotate-ccw" size={24}/></button></div><div className="flex justify-center gap-3"><Button variant="secondary" onClick={()=>setPreset(25)}>25m</Button><Button variant="secondary" onClick={()=>setPreset(50)}>50m</Button><Button variant="secondary" onClick={()=>setPreset(90)}>90m</Button></div></Card></div>
+                </div>
+            );
+        };
+
+        const Settings = ({ user, updateUser, resetApp }) => (
+            <div className="max-w-xl mx-auto space-y-6">
+                <header><h2 className="text-3xl font-bold text-white">System Config</h2></header>
+                <Card className="space-y-6"><div><label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Objective</label><input value={user.goalName||""} onChange={e=>updateUser({...user, goalName:e.target.value})} className="w-full bg-black/50 border border-slate-700 rounded-xl p-4 text-white focus:border-brand-500 outline-none" /></div><div><label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Target Date</label><input type="date" value={user.examDate||""} onChange={e=>updateUser({...user, examDate:e.target.value})} className="w-full bg-black/50 border border-slate-700 rounded-xl p-4 text-white focus:border-brand-500 outline-none" /></div></Card>
+                <div className="border border-red-500/30 rounded-xl p-6 bg-red-900/10 flex items-center justify-between"><div className="flex items-center gap-4 text-red-400"><Icon name="alert-triangle" size={24}/><div className="text-sm font-bold uppercase tracking-widest">Danger Zone</div></div><Button variant="danger" onClick={resetApp}>Factory Reset</Button></div>
+            </div>
+        );
+
+        // --- MAIN APP ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [isSearchOpen, setIsSearchOpen] = useState(false);
+            const [appState, setAppState] = useState(() => {
+                const saved = localStorage.getItem('prepOS_v19');
+                try { 
+                    if(saved) {
+                        const parsed = JSON.parse(saved);
+                        const u = parsed.users[parsed.activeUserId];
+                        if(!u.focus) u.focus = { timeLeft: 25*60, initialTime: 25*60, isActive: false };
+                        if(u.totalTime === undefined) u.totalTime = 0;
+                        if(!u.flashcards) u.flashcards = [];
+                        return parsed;
+                    }
+                } catch(e) {}
+                return { theme: 'dark', activeUserId: 'u_default', users: { 'u_default': { id: 'u_default', name: 'User', goalName: 'GATE CS', syllabus: GATE_CS_FULL, kanban: { todo: [], doing: [], done: [] }, resources: [], activity: {}, totalTime: 0, flashcards: [], examDate: '2026-02-01', focus: { timeLeft: 25*60, initialTime: 25*60, isActive: false } } } };
+            });
+
+            // Global Timer
+            useEffect(() => {
+                let interval = null;
+                const user = appState.users[appState.activeUserId];
+                if (user.focus && user.focus.isActive && user.focus.timeLeft > 0) {
+                    interval = setInterval(() => {
+                        setAppState(prev => {
+                            const u = prev.users[prev.activeUserId];
+                            if (u.focus.isActive && u.focus.timeLeft > 0) { return { ...prev, users: { ...prev.users, [prev.activeUserId]: { ...u, focus: { ...u.focus, timeLeft: u.focus.timeLeft - 1 } } } }; }
+                            if (u.focus.isActive && u.focus.timeLeft === 0) { const addedTime = u.focus.initialTime / 60; return { ...prev, users: { ...prev.users, [prev.activeUserId]: { ...u, focus: { ...u.focus, isActive: false }, totalTime: (u.totalTime || 0) + addedTime } } }; }
+                            return prev;
+                        });
+                    }, 1000);
+                }
+                return () => clearInterval(interval);
+            }, [appState.users[appState.activeUserId]?.focus?.isActive]);
+
+            useEffect(() => { localStorage.setItem('prepOS_v19', JSON.stringify(appState)); }, [appState]);
+            useEffect(() => { const handleDown = (e) => { if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setIsSearchOpen(prev => !prev); } }; document.addEventListener('keydown', handleDown); return () => document.removeEventListener('keydown', handleDown); }, []);
+
+            const currentUser = appState.users[appState.activeUserId];
+            const updateCurrentUser = (newData) => setAppState(prev => ({ ...prev, users: { ...prev.users, [prev.activeUserId]: newData } }));
+            const logActivity = () => { const today = new Date().toISOString().split('T')[0]; const activity = currentUser.activity || {}; updateCurrentUser({ ...currentUser, activity: { ...activity, [today]: (activity[today] || 0) + 1 } }); };
+            const logTime = (minutes) => { logActivity(); updateCurrentUser({ ...currentUser, totalTime: (currentUser.totalTime || 0) + minutes }); }
+            const setFocusState = (newFocusState) => updateCurrentUser({ ...currentUser, focus: newFocusState });
+            const resetApp = () => { if(confirm("INITIATE SYSTEM WIPE?")) { localStorage.removeItem('prepOS_v19'); window.location.reload(); } };
+
+            return (
+                <div className="flex min-h-screen font-sans text-slate-200 selection:bg-brand-500/30 selection:text-white">
+                    <aside className="w-20 lg:w-72 bg-[#0a0a0f]/80 backdrop-blur-xl border-r border-white/5 flex flex-col fixed h-full z-40">
+                        <div className="p-8 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold shadow-[0_0_20px_rgba(79,70,229,0.4)] text-2xl animate-pulse">P</div>
+                            <span className="font-bold text-2xl tracking-tighter hidden lg:block text-white">PREP_OS</span>
+                        </div>
+                        <nav className="flex-1 px-4 space-y-2 overflow-y-auto mt-4">
+                            {[ {id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard'}, {id: 'projects', icon: 'trello', label: 'Projects'}, {id: 'syllabus', icon: 'book-open', label: 'Syllabus'}, {id: 'flashcards', icon: 'zap', label: 'Flashcards'}, {id: 'resources', icon: 'archive', label: 'Vault'}, {id: 'focus', icon: 'timer', label: 'Focus'}, {id: 'settings', icon: 'settings', label: 'System'} ].map(item => (
+                                <button key={item.id} id={item.id_btn} onClick={() => setActiveTab(item.id)} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all group relative overflow-hidden ${activeTab === item.id ? 'text-white font-semibold' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}>
+                                    {activeTab === item.id && <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-500 rounded-r-full shadow-[0_0_10px_#4f46e5]"></div>}
+                                    {activeTab === item.id && <div className="absolute inset-0 bg-brand-500/10"></div>}
+                                    <Icon name={item.icon} size={20} className={activeTab === item.id ? "text-brand-400" : "group-hover:text-brand-400 transition-colors"} /> <span className="hidden lg:block text-sm tracking-wide">{item.label}</span>
+                                </button>
+                            ))}
+                        </nav>
+                        <div className="p-6 border-t border-white/5 text-center text-xs text-slate-500">v19.0 STABLE</div>
+                    </aside>
+                    <main className="flex-1 ml-20 lg:ml-72 p-8 lg:p-12 overflow-y-auto relative z-10">
+                        <div className="max-w-7xl mx-auto">
+                            {activeTab === 'dashboard' && <Dashboard user={currentUser} setTab={setActiveTab} />}
+                            {activeTab === 'projects' && <KanbanBoard user={currentUser} updateUser={updateCurrentUser} logActivity={logActivity} />}
+                            {activeTab === 'syllabus' && <Syllabus user={currentUser} updateUser={updateCurrentUser} logActivity={logActivity} />}
+                            {activeTab === 'flashcards' && <SmartFlashcards user={currentUser} updateUser={updateCurrentUser} />}
+                            {activeTab === 'resources' && <ResourceVault user={currentUser} updateUser={updateCurrentUser} />}
+                            {activeTab === 'focus' && <FocusMode focusState={currentUser.focus} setFocusState={setFocusState} logTime={(t)=>{logActivity(); updateCurrentUser({...currentUser, totalTime: (currentUser.totalTime||0)+t})}} />}
+                            {activeTab === 'settings' && <Settings user={currentUser} updateUser={updateCurrentUser} resetApp={resetApp} />}
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
