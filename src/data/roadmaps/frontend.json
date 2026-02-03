@@ -1,0 +1,87 @@
+{
+    "id": "frontend-2026",
+    "title": "Frontend Developer",
+    "nodes": [
+        {
+            "id": "root",
+            "type": "roadmapRoot",
+            "data": {
+                "label": "Frontend Development"
+            },
+            "position": {
+                "x": 250,
+                "y": 0
+            }
+        },
+        {
+            "id": "internet",
+            "type": "roadmapNode",
+            "data": {
+                "label": "Internet",
+                "status": "done",
+                "description": "How the web works (DNS, HTTP, Hosting).",
+                "resources": [
+                    {
+                        "title": "How the Internet Works (Video)",
+                        "url": "https://youtu.be/TNQsmPf24go",
+                        "type": "video"
+                    },
+                    {
+                        "title": "MDN: How the Web Works",
+                        "url": "https://developer.mozilla.org/en-US/docs/Learn/Common_questions/Web_mechanics/How_does_the_Internet_work",
+                        "type": "article"
+                    }
+                ]
+            },
+            "position": {
+                "x": 250,
+                "y": 100
+            }
+        },
+        {
+            "id": "html",
+            "type": "roadmapNode",
+            "data": {
+                "label": "HTML",
+                "description": "The standard markup language for documents designed to be displayed in a web browser."
+            },
+            "position": {
+                "x": 100,
+                "y": 200
+            }
+        },
+        {
+            "id": "css",
+            "type": "roadmapNode",
+            "data": {
+                "label": "CSS",
+                "description": "A style sheet language used for describing the presentation of a document written in a markup language like HTML."
+            },
+            "position": {
+                "x": 400,
+                "y": 200
+            }
+        }
+    ],
+    "edges": [
+        {
+            "id": "e1-2",
+            "source": "root",
+            "target": "internet",
+            "type": "smoothstep",
+            "animated": true
+        },
+        {
+            "id": "e2-3",
+            "source": "internet",
+            "target": "html",
+            "type": "smoothstep"
+        },
+        {
+            "id": "e2-4",
+            "source": "internet",
+            "target": "css",
+            "type": "smoothstep"
+        }
+    ]
+}
